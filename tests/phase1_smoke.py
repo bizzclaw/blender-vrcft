@@ -13,8 +13,8 @@ import os
 import socket
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO_ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _addon  # noqa: E402,F401
 
 import bpy  # noqa: E402
 import blender_vrcft  # noqa: E402
