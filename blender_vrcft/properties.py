@@ -1,3 +1,5 @@
+import math
+
 import bpy
 from bpy.props import (
     BoolProperty,
@@ -12,6 +14,10 @@ from bpy.types import Object, PropertyGroup
 
 def _poll_mesh(self, obj):
     return obj.type == 'MESH'
+
+
+def _poll_armature(self, obj):
+    return obj.type == 'ARMATURE'
 
 
 class VRCFT_ParamItem(PropertyGroup):
@@ -40,6 +46,15 @@ class VRCFT_Settings(PropertyGroup):
         max=65535,
     )
 
+    vrcft_send_port: IntProperty(
+        name="VRCFT Input Port",
+        description="UDP port VRCFT listens on (we send /avatar/change here"
+        " on Start Test). Default VRCFT setup is 9001",
+        default=9001,
+        min=1,
+        max=65535,
+    )
+
     oscquery_http_port: IntProperty(
         name="OSCQuery HTTP Port",
         description="HTTP port for the OSCQuery JSON endpoint. 0 picks a free port at start",
@@ -57,7 +72,23 @@ class VRCFT_Settings(PropertyGroup):
     smoothing: FloatProperty(
         name="Smoothing",
         description="Lerp alpha per drained tick. 0 = none, 1 = snap",
-        default=0.1,
+        default=0.3,
+        min=0.0,
+        max=1.0,
+        subtype='FACTOR',
+    )
+
+    rounding: FloatProperty(
+        name="Rounding",
+        description=(
+            "Deadband on the smoothing target. The target only updates when "
+            "the incoming raw value moves more than this from the last "
+            "committed value. Smoothing then continues to lerp the shape "
+            "key toward the held target. Saturation values (0 and 1) "
+            "always commit immediately so shape keys can fully open/close. "
+            "0 = off"
+        ),
+        default=0.07,
         min=0.0,
         max=1.0,
         subtype='FACTOR',
@@ -67,6 +98,54 @@ class VRCFT_Settings(PropertyGroup):
         name="Address Prefix",
         description="OSC address prefix to match. Trailing slash recommended",
         default="/avatar/parameters/",
+    )
+
+    eye_armature: PointerProperty(
+        type=Object,
+        name="Eye Armature",
+        description="Armature containing the left and right eye bones",
+        poll=_poll_armature,
+    )
+
+    left_eye_bone: StringProperty(
+        name="Left Eye Bone",
+        description="Pose bone driven by the left-eye gaze parameters",
+        default="",
+    )
+
+    right_eye_bone: StringProperty(
+        name="Right Eye Bone",
+        description="Pose bone driven by the right-eye gaze parameters",
+        default="",
+    )
+
+    eye_range_up: FloatProperty(
+        name="Range Up",
+        description="Maximum upward eye-bone pitch when EyeY = +1",
+        default=math.radians(30.0),
+        subtype='ANGLE',
+        unit='ROTATION',
+    )
+    eye_range_down: FloatProperty(
+        name="Range Down",
+        description="Maximum downward eye-bone pitch when EyeY = -1",
+        default=math.radians(30.0),
+        subtype='ANGLE',
+        unit='ROTATION',
+    )
+    eye_range_left: FloatProperty(
+        name="Range Left",
+        description="Maximum leftward eye-bone yaw when EyeX = -1",
+        default=math.radians(30.0),
+        subtype='ANGLE',
+        unit='ROTATION',
+    )
+    eye_range_right: FloatProperty(
+        name="Range Right",
+        description="Maximum rightward eye-bone yaw when EyeX = +1",
+        default=math.radians(30.0),
+        subtype='ANGLE',
+        unit='ROTATION',
     )
 
     capture_path: StringProperty(
@@ -80,6 +159,12 @@ class VRCFT_Settings(PropertyGroup):
         name="Test Running",
         description="True while the OSC test session is active",
         default=False,
+    )
+
+    avatar_status: StringProperty(
+        name="Avatar Status",
+        description="Last result from the avatar JSON registration",
+        default="",
     )
 
     is_capturing: BoolProperty(

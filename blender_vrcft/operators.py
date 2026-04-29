@@ -3,6 +3,7 @@ import os
 import bpy
 from bpy.types import Operator
 
+from . import avatar_json
 from . import capture as capture_mod
 from . import osc_bridge
 
@@ -12,6 +13,12 @@ def _resolve_capture_path(raw):
     if p.startswith("//"):
         p = p[2:]
     return os.path.abspath(p)
+
+
+def _shape_key_names(mesh):
+    if mesh is None or mesh.data.shape_keys is None:
+        return []
+    return [kb.name for kb in mesh.data.shape_keys.key_blocks if kb.name != "Basis"]
 
 
 class VRCFT_OT_start_test(Operator):
@@ -35,10 +42,30 @@ class VRCFT_OT_start_test(Operator):
 
         b = osc_bridge.get_bridge()
         b.address_prefix = s.address_prefix
+        b.touched_keys.clear()
         err = b.acquire(s.osc_port)
         if err:
             self.report({'ERROR'}, f"Could not bind UDP {s.osc_port}: {err}")
             return {'CANCELLED'}
+
+        # Register a Blender-owned avatar JSON with VRCFT so its Avatar
+        # Status shows our name (and so VRCFT sends every parameter we
+        # actually have a shape key for).
+        result = avatar_json.register_blender_avatar(
+            blend_path=bpy.data.filepath,
+            shape_key_names=_shape_key_names(s.head_mesh),
+            send_host="127.0.0.1",
+            send_port=s.vrcft_send_port,
+        )
+        if result["error"]:
+            s.avatar_status = result["error"]
+            self.report({'WARNING'}, result["error"])
+        else:
+            s.avatar_status = f"Registered as {result['name']}"
+            print(
+                f"[VRCFT] avatar JSON: {result['json_path']} "
+                f"(id={result['avatar_id']})"
+            )
 
         s.is_running = True
         if not bpy.app.timers.is_registered(osc_bridge.tick):
@@ -61,6 +88,15 @@ class VRCFT_OT_stop_test(Operator):
         s.is_running = False
         if bpy.app.timers.is_registered(osc_bridge.tick):
             bpy.app.timers.unregister(osc_bridge.tick)
+
+        # Reset every shape key we drove during this session before
+        # tearing the server down. Do it on the active scene, not via
+        # context (context.scene can be None during teardown in some
+        # callers).
+        osc_bridge.reset_touched_shape_keys(context.scene)
+        s.params.clear()
+        s.active_param_index = 0
+
         osc_bridge.get_bridge().release()
         print("[VRCFT] stop_test")
         return {'FINISHED'}

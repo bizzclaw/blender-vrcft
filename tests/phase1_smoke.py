@@ -52,7 +52,7 @@ print(
 expect(s.osc_port == 9000, f"osc_port default wrong: {s.osc_port}")
 expect(s.oscquery_http_port == 0, "oscquery_http_port default should be 0")
 expect(s.service_name == "Blender VRCFT", "service_name default wrong")
-expect(abs(s.smoothing - 0.1) < 1e-6, "smoothing default wrong")
+expect(abs(s.smoothing - 0.3) < 1e-6, "smoothing default wrong")
 expect(s.address_prefix == "/avatar/parameters/", "address_prefix default wrong")
 expect(s.capture_path == "//vrcft_capture.log", "capture_path default wrong")
 expect(s.is_running is False, "is_running should default False")

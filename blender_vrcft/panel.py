@@ -17,10 +17,27 @@ class VRCFT_PT_main(Panel):
         box.label(text="Setup", icon='OUTLINER_OB_MESH')
         box.prop(s, "head_mesh")
         box.prop(s, "smoothing")
+        box.prop(s, "rounding")
+
+        box = layout.box()
+        box.label(text="Eye Bones", icon='HIDE_OFF')
+        box.prop(s, "eye_armature")
+        if s.eye_armature is not None and s.eye_armature.type == 'ARMATURE':
+            box.prop_search(s, "left_eye_bone", s.eye_armature.data, "bones")
+            box.prop_search(s, "right_eye_bone", s.eye_armature.data, "bones")
+        sub = box.column(align=True)
+        sub.label(text="Eye Range")
+        row = sub.row(align=True)
+        row.prop(s, "eye_range_up", text="Up")
+        row.prop(s, "eye_range_down", text="Down")
+        row = sub.row(align=True)
+        row.prop(s, "eye_range_left", text="Left")
+        row.prop(s, "eye_range_right", text="Right")
 
         box = layout.box()
         box.label(text="Network", icon='WORLD')
         box.prop(s, "osc_port")
+        box.prop(s, "vrcft_send_port")
         box.prop(s, "oscquery_http_port")
         box.prop(s, "service_name")
         box.prop(s, "address_prefix")
@@ -33,6 +50,8 @@ class VRCFT_PT_main(Panel):
             box.operator("vrcft.stop_test", icon='PAUSE')
         else:
             box.operator("vrcft.start_test", icon='PLAY')
+        if s.avatar_status:
+            box.label(text=s.avatar_status, icon='INFO')
 
         box = layout.box()
         row = box.row(align=True)
