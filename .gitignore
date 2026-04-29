@@ -1,0 +1,77 @@
+# Archives / build artifacts
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Python / Blender add-on bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+*.whl
+
+# Blender backup & temp files
+*.blend1
+*.blend2
+*.blend3
+*.blend@
+*.blend.lock
+*.orig
+*.tmp
+*.bak
+
+# Logs
+*.log
+vrcft_capture.log
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+nosetests.xml
+coverage.xml
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
