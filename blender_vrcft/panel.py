@@ -44,24 +44,32 @@ class VRCFT_PT_main(Panel):
 
         box = layout.box()
         row = box.row(align=True)
-        row.label(text="Test", icon='PLAY')
-        row.label(text="Running" if s.is_running else "Stopped")
+        row.label(text="Session", icon='PLAY')
+        row.label(text=("Running: " + s.active_mode.title()) if s.is_running else "Stopped")
+        sub = box.row(align=True)
+        sub.enabled = not s.is_running
+        sub.prop(s, "mode", expand=True)
         if s.is_running:
-            box.operator("vrcft.stop_test", icon='PAUSE')
+            box.operator("vrcft.stop_session", icon='PAUSE', text="Stop")
         else:
-            box.operator("vrcft.start_test", icon='PLAY')
+            box.operator("vrcft.start_session", icon='PLAY', text="Start")
         if s.avatar_status:
             box.label(text=s.avatar_status, icon='INFO')
+        if s.is_running and s.active_mode == 'CAPTURE':
+            box.label(
+                text=f"Recording \u2192 frame {context.scene.frame_current}",
+                icon='REC',
+            )
 
         box = layout.box()
         row = box.row(align=True)
-        row.label(text="Capture", icon='REC')
-        row.label(text="Recording" if s.is_capturing else "Idle")
+        row.label(text="OSC Log", icon='FILE_TEXT')
+        row.label(text="Logging" if s.is_capturing else "Idle")
         box.prop(s, "capture_path")
         if s.is_capturing:
-            box.operator("vrcft.stop_capture", icon='SNAP_FACE')
+            box.operator("vrcft.stop_capture", icon='SNAP_FACE', text="Stop Log")
         else:
-            box.operator("vrcft.start_capture", icon='REC')
+            box.operator("vrcft.start_capture", icon='REC', text="Start Log")
 
         box = layout.box()
         header = box.row(align=True)

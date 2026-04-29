@@ -102,6 +102,68 @@ class VRCFT_OT_stop_test(Operator):
         return {'FINISHED'}
 
 
+class VRCFT_OT_start_session(Operator):
+    bl_idname = "vrcft.start_session"
+    bl_label = "Start"
+    bl_description = "Start the selected mode (Test or Capture)"
+
+    def execute(self, context):
+        s = context.scene.vrcft
+        if s.is_running:
+            return {'CANCELLED'}
+        # Always start Test first; in CAPTURE we additionally engage
+        # the keyframer (added in phase 5c).
+        result = bpy.ops.vrcft.start_test()
+        if 'FINISHED' not in result:
+            return {'CANCELLED'}
+        s.active_mode = s.mode
+        if s.mode == 'CAPTURE':
+            b = osc_bridge.get_bridge()
+            try:
+                from . import keyframer as kf_mod
+            except ImportError:
+                kf_mod = None
+            if kf_mod is not None:
+                start_frame = context.scene.frame_current
+                kf = kf_mod.Keyframer(
+                    mesh=s.head_mesh,
+                    armature=s.eye_armature,
+                    left_bone=s.left_eye_bone,
+                    right_bone=s.right_eye_bone,
+                )
+                try:
+                    kf.start(start_frame)
+                    b.keyframer = kf
+                    print(f"[VRCFT] capture start at frame {start_frame}")
+                except Exception as e:
+                    self.report({'WARNING'}, f"Capture init failed: {e}")
+        return {'FINISHED'}
+
+
+class VRCFT_OT_stop_session(Operator):
+    bl_idname = "vrcft.stop_session"
+    bl_label = "Stop"
+    bl_description = "Stop the running session"
+
+    def execute(self, context):
+        s = context.scene.vrcft
+        if not s.is_running:
+            return {'CANCELLED'}
+        b = osc_bridge.get_bridge()
+        kf = getattr(b, 'keyframer', None)
+        if kf is not None:
+            try:
+                kf.stop(context.scene.frame_current)
+            except Exception as e:
+                print(f"[VRCFT] capture stop error: {e}")
+            b.keyframer = None
+            print("[VRCFT] capture stop")
+        bpy.ops.vrcft.stop_test()
+        s.active_mode = 'IDLE'
+        return {'FINISHED'}
+
+
+
 class VRCFT_OT_start_capture(Operator):
     bl_idname = "vrcft.start_capture"
     bl_label = "Start Capture"
@@ -171,6 +233,8 @@ class VRCFT_OT_clear_params(Operator):
 _classes = (
     VRCFT_OT_start_test,
     VRCFT_OT_stop_test,
+    VRCFT_OT_start_session,
+    VRCFT_OT_stop_session,
     VRCFT_OT_start_capture,
     VRCFT_OT_stop_capture,
     VRCFT_OT_clear_params,

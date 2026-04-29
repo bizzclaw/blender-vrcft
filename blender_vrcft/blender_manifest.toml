@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "blender_vrcft"
-version = "0.5.2"
+version = "0.6.0"
 name = "VRCFT"
 tagline = "Preview VRCFaceTracking blendshapes live in Blender"
 maintainer = "BlenderVRCFT contributors <you@example.com>"

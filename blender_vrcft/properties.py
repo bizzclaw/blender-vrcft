@@ -4,6 +4,7 @@ import bpy
 from bpy.props import (
     BoolProperty,
     CollectionProperty,
+    EnumProperty,
     FloatProperty,
     IntProperty,
     PointerProperty,
@@ -159,6 +160,31 @@ class VRCFT_Settings(PropertyGroup):
         name="Test Running",
         description="True while the OSC test session is active",
         default=False,
+    )
+
+    mode: EnumProperty(
+        name="Mode",
+        description=(
+            "Test = preview only. Capture = preview AND record keyframes "
+            "into a VRCFT_Capture action, advancing the scene frame each "
+            "tick"
+        ),
+        items=[
+            ('TEST', "Test", "Preview OSC values on the avatar without recording"),
+            ('CAPTURE', "Capture", "Preview AND record keyframes into a VRCFT_Capture action"),
+        ],
+        default='TEST',
+    )
+
+    active_mode: EnumProperty(
+        name="Active Mode",
+        description="The mode the session was started in. IDLE while stopped",
+        items=[
+            ('IDLE', "Idle", ""),
+            ('TEST', "Test", ""),
+            ('CAPTURE', "Capture", ""),
+        ],
+        default='IDLE',
     )
 
     avatar_status: StringProperty(

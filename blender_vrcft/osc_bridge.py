@@ -179,6 +179,8 @@ class OSCBridge:
         # (armature_name, bone_name) for any pose bone we've rotated
         # this session. Used so Stop Test can return them to identity.
         self.touched_bones = set()
+        # Active capture keyframer (Phase 5b/5c). None when not capturing.
+        self.keyframer = None
         self._lock = threading.Lock()
 
     def _on_any(self, address, *args):
@@ -549,6 +551,15 @@ def tick():
     # ---- eye-bone driver ----
     if _drive_eye_bones(s, b, smoothing):
         any_shape_key_changed = True
+
+    # ---- keyframe capture ----
+    if b.keyframer is not None:
+        try:
+            frame = scene.frame_current
+            b.keyframer.tick(frame)
+            scene.frame_set(frame + 1)
+        except Exception as e:
+            print(f"[VRCFT] keyframer tick error: {e}")
 
     if touched or any_shape_key_changed:
         _tag_panel_redraw()

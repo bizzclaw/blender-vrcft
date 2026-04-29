@@ -104,11 +104,21 @@ OSCQuery (mDNS + HTTP) discovery is the only remaining phase. See
   actually emit all 50+48 parameters; otherwise it would only send to the
   literal shape-key names. The GUID is deterministic per `.blend` path, so
   the same file always gets the same registration.
-- Start Capture writes every inbound OSC message (including those outside
-  the address prefix) to the configured file as TSV, with a header and
-  footer. Capped at 50 MB per session.
-- Test and Capture can run independently or together; the underlying OSC
-  socket is reference-counted.
+- **Capture mode** bakes the live preview into Blender animation data.
+  Pick **Capture** in the **Mode** dropdown and click **Start**. Every
+  tick, the add-on inserts sparse keyframes into a `VRCFT_Capture_*`
+  action — anchoring at the current scene frame, advancing one frame
+  per tick, and only writing keys when a value actually changes
+  (`>1e-5`). On Start, only the F-curves the bridge will overwrite are
+  cleared from the action; any other curves on it are preserved. On
+  Stop, a final key is force-anchored. The Mode dropdown is greyed out
+  while running — flip back to **Test** or **Stop** first to change
+  modes.
+- **OSC Log** (separate, optional) writes every inbound OSC message to
+  the configured TSV file. Independent of Test/Capture; cap is 50 MB
+  per session. Use it for debugging the wire protocol.
+- The OSC socket is reference-counted, so Capture and the OSC Log can
+  run simultaneously.
 - A live **Live Parameters** list shows every received parameter as a
   0–1 progress bar, labeled with its name. Unmatched parameters (no
   shape key on the assigned mesh and no bipolar split landed) show with

@@ -37,7 +37,7 @@ def compute_angles(
     eye_x = max(-1.0, min(1.0, eye_x))
     eye_y = max(-1.0, min(1.0, eye_y))
     pitch = eye_y * (range_up if eye_y >= 0.0 else range_down)
-    yaw = eye_x * (range_right if eye_x >= 0.0 else range_left) * -1
+    yaw = eye_x * (range_right if eye_x >= 0.0 else range_left)
     return pitch, yaw
 
 
