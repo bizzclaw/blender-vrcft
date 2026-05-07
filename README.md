@@ -152,6 +152,36 @@ For coverage reporting (optional):
 pip install pytest-cov
 ```
 
+## CI/CD
+
+This project uses GitLab CI/CD for automated testing. The pipeline includes:
+
+### Stages
+
+1. **Lint** - Code quality checks with ruff
+2. **Unit Tests** - Fast pytest runs without Blender (87 tests)
+3. **Integration Tests** - Blender smoke tests (5 phases)
+
+### Pipeline Behavior
+
+- **Merge Requests**: Unit tests run automatically; integration tests run manually
+- **Main branch**: All tests run automatically
+- **Coverage**: Reported in merge requests via Cobertura XML
+
+### Running CI Locally
+
+You can simulate CI jobs locally using Docker:
+
+```bash
+# Unit tests
+docker run --rm -v $(pwd):/app -w /app python:3.11-slim \
+    bash -c "pip install -r requirements-dev.txt && pytest tests/unit/"
+
+# Integration tests (requires Blender)
+docker run --rm -v $(pwd):/app -w /app nytimes/blender:5.0 \
+    blender --background --factory-startup --python tests/phase1_smoke.py
+```
+
 ## License
 
 GPL-3.0-or-later.
