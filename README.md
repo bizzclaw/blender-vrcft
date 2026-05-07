@@ -81,17 +81,26 @@ In the **3D Viewport → N panel → VRCFT** tab:
 Unit tests verify pure functions that don't require Blender. Run them with pytest:
 
 ```bash
+# Run all unit tests
 pytest tests/unit/
-```
 
-Run specific test files:
-
-```bash
+# Run specific test files
 pytest tests/unit/test_avatar_json.py
 pytest tests/unit/test_osc_bridge.py
+
+# Run with verbose output
+pytest -v tests/unit/
 ```
 
-Run with coverage report:
+#### Coverage (Optional)
+
+To generate coverage reports, first install pytest-cov:
+
+```bash
+pip install pytest-cov
+```
+
+Then run with coverage:
 
 ```bash
 pytest --cov=blender_vrcft tests/unit/
@@ -128,13 +137,19 @@ On Windows, adjust the Blender path:
 
 ### Requirements
 
-- **Unit tests**: Python 3.11+, pytest, pytest-cov (optional)
+- **Unit tests**: Python 3.11+, pytest
 - **Integration tests**: Blender 5.0+
 
 Install pytest:
 
 ```bash
-pip install pytest pytest-cov
+pip install pytest
+```
+
+For coverage reporting (optional):
+
+```bash
+pip install pytest-cov
 ```
 
 ## License
