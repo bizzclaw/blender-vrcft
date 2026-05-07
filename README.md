@@ -74,6 +74,69 @@ In the **3D Viewport → N panel → VRCFT** tab:
 - **Nothing's coming in** — confirm VRCFT is running, that its OSC output
   is enabled, and that the ports match.
 
+## Testing
+
+### Unit Tests (Fast)
+
+Unit tests verify pure functions that don't require Blender. Run them with pytest:
+
+```bash
+pytest tests/unit/
+```
+
+Run specific test files:
+
+```bash
+pytest tests/unit/test_avatar_json.py
+pytest tests/unit/test_osc_bridge.py
+```
+
+Run with coverage report:
+
+```bash
+pytest --cov=blender_vrcft tests/unit/
+pytest --cov=blender_vrcft --cov-report=html tests/unit/
+```
+
+### Integration Tests (Blender Required)
+
+Smoke tests verify end-to-end functionality in Blender headless mode. These tests
+require Blender to be installed and accessible from your system.
+
+Run all smoke tests:
+
+```bash
+blender --background --factory-startup --python tests/phase1_smoke.py
+blender --background --factory-startup --python tests/phase2_smoke.py
+blender --background --factory-startup --python tests/phase3_smoke.py
+blender --background --factory-startup --python tests/phase4_smoke.py
+blender --background --factory-startup --python tests/phase5_smoke.py
+```
+
+On Windows, adjust the Blender path:
+
+```bash
+"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe" \
+    --background --factory-startup --python tests/phase1_smoke.py
+```
+
+### Test Organization
+
+- `tests/unit/` — Fast unit tests for pure functions (no Blender needed)
+- `tests/phase*_smoke.py` — Integration tests requiring Blender headless mode
+- `tests/conftest.py` — Shared pytest fixtures for unit tests
+
+### Requirements
+
+- **Unit tests**: Python 3.11+, pytest, pytest-cov (optional)
+- **Integration tests**: Blender 5.0+
+
+Install pytest:
+
+```bash
+pip install pytest pytest-cov
+```
+
 ## License
 
 GPL-3.0-or-later.
