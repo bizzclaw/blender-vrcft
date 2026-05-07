@@ -12,6 +12,8 @@ from bpy.props import (
 )
 from bpy.types import Object, PropertyGroup
 
+from . import unified_expressions
+
 
 def _poll_mesh(self, obj):
     return obj.type == 'MESH'
@@ -93,6 +95,18 @@ class VRCFT_Settings(PropertyGroup):
         min=0.0,
         max=1.0,
         subtype='FACTOR',
+    )
+
+    tracking_profile: EnumProperty(
+        name="Blendshape Set",
+        description=(
+            "Which face-tracking blendshape vocabulary the avatar expects. "
+            "Unified uses VRCFaceTracking Unified Expressions v2 plus legacy "
+            "compatibility parameters. ARKit uses Apple's 52 blendshape "
+            "coefficients"
+        ),
+        items=unified_expressions.TRACKING_PROFILE_ITEMS,
+        default=unified_expressions.DEFAULT_TRACKING_PROFILE,
     )
 
     address_prefix: StringProperty(

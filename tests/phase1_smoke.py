@@ -46,13 +46,15 @@ s = scene.vrcft
 print(
     f"[smoke] defaults: osc_port={s.osc_port}, http_port={s.oscquery_http_port}, "
     f"service='{s.service_name}', smoothing={s.smoothing:.3f}, "
-    f"prefix='{s.address_prefix}', capture='{s.capture_path}'"
+    f"profile='{s.tracking_profile}', prefix='{s.address_prefix}', "
+    f"capture='{s.capture_path}'"
 )
 
 expect(s.osc_port == 9000, f"osc_port default wrong: {s.osc_port}")
 expect(s.oscquery_http_port == 0, "oscquery_http_port default should be 0")
 expect(s.service_name == "Blender VRCFT", "service_name default wrong")
 expect(abs(s.smoothing - 0.3) < 1e-6, "smoothing default wrong")
+expect(s.tracking_profile == 'UNIFIED', "tracking_profile default wrong")
 expect(s.address_prefix == "/avatar/parameters/", "address_prefix default wrong")
 expect(s.capture_path == "//vrcft_capture.log", "capture_path default wrong")
 expect(s.is_running is False, "is_running should default False")
@@ -61,6 +63,9 @@ expect(s.is_capturing is False, "is_capturing should default False")
 s.osc_port = 9100
 expect(scene.vrcft.osc_port == 9100, "property write did not persist")
 s.osc_port = 9000
+s.tracking_profile = 'ARKIT'
+expect(scene.vrcft.tracking_profile == 'ARKIT', "tracking_profile write did not persist")
+s.tracking_profile = 'UNIFIED'
 
 for opname in (
     "vrcft.start_test",

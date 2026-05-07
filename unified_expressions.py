@@ -1,15 +1,35 @@
-"""Canonical Unified Expressions parameter list for VRCFaceTracking.
+"""Canonical face-tracking parameter catalogs.
 
-VRCFT only sends OSC for parameters declared in the avatar JSON it loads.
-If we declare only the avatar's literal shape-key names, VRCFT will skip
-anything bipolar / simplified / composite — even if our ``tick()`` knows
-how to decompose those into shape keys.
+The add-on can target either VRCFaceTracking's Unified Expressions set or
+Apple's ARKit 52-coefficient blendshape set *for the local avatar rig*.
 
-Declaring every UE parameter we recognize lets VRCFT pump the full
-"50 v2 + 48 legacy" stream at us. Mismatches stay harmless: anything we
-can't route to a shape key shows up as an unmatched row in the live UI.
+Important: VRCFT's file-based avatar parser only recognizes its built-in
+Unified/legacy output parameter surface. That means Blender must always
+register the Unified parameter set with VRCFT, then locally translate the
+incoming Unified stream onto ARKit-named shape keys when ARKit mode is
+selected.
+
+Mismatches stay harmless: anything we can't route to a shape key shows up
+as an unmatched row in the live UI.
 """
 from __future__ import annotations
+
+TRACKING_PROFILE_UNIFIED = "UNIFIED"
+TRACKING_PROFILE_ARKIT = "ARKIT"
+DEFAULT_TRACKING_PROFILE = TRACKING_PROFILE_UNIFIED
+
+TRACKING_PROFILE_ITEMS = (
+    (
+        TRACKING_PROFILE_UNIFIED,
+        "Unified",
+        "Use VRCFaceTracking Unified Expressions v2 plus legacy compatibility parameters",
+    ),
+    (
+        TRACKING_PROFILE_ARKIT,
+        "ARKit",
+        "Use Apple's 52 ARKit blendshape coefficients",
+    ),
+)
 
 # ---- v2 (Unified Expressions) parameter names ----
 # Source: https://docs.vrcft.io/docs/tutorial-avatars/tutorial-avatars-extras/parameters
@@ -108,22 +128,101 @@ LEGACY_PARAMETERS: tuple[str, ...] = (
 )
 
 
-def all_known_addresses(address_prefix: str = "/avatar/parameters/") -> list[str]:
-    """Every OSC address VRCFT might emit, with both v2 and legacy names.
+# ---- Apple ARKit blendshape coefficients ----
+# Source: https://developer.apple.com/documentation/arkit/arfaceanchor/blendshapelocation
+
+ARKIT_PARAMETERS: tuple[str, ...] = (
+    # Left eye
+    "eyeBlinkLeft", "eyeLookDownLeft", "eyeLookInLeft",
+    "eyeLookOutLeft", "eyeLookUpLeft", "eyeSquintLeft", "eyeWideLeft",
+    # Right eye
+    "eyeBlinkRight", "eyeLookDownRight", "eyeLookInRight",
+    "eyeLookOutRight", "eyeLookUpRight", "eyeSquintRight", "eyeWideRight",
+    # Jaw
+    "jawForward", "jawLeft", "jawRight", "jawOpen",
+    # Mouth
+    "mouthClose", "mouthFunnel", "mouthPucker",
+    "mouthLeft", "mouthRight",
+    "mouthSmileLeft", "mouthSmileRight",
+    "mouthFrownLeft", "mouthFrownRight",
+    "mouthDimpleLeft", "mouthDimpleRight",
+    "mouthStretchLeft", "mouthStretchRight",
+    "mouthRollLower", "mouthRollUpper",
+    "mouthShrugLower", "mouthShrugUpper",
+    "mouthPressLeft", "mouthPressRight",
+    "mouthLowerDownLeft", "mouthLowerDownRight",
+    "mouthUpperUpLeft", "mouthUpperUpRight",
+    # Brows, cheeks, nose
+    "browDownLeft", "browDownRight", "browInnerUp",
+    "browOuterUpLeft", "browOuterUpRight",
+    "cheekPuff", "cheekSquintLeft", "cheekSquintRight",
+    "noseSneerLeft", "noseSneerRight",
+    # Tongue
+    "tongueOut",
+)
+
+
+def normalize_tracking_profile(tracking_profile: str | None) -> str:
+    """Clamp unknown profile values back to the default profile."""
+    if tracking_profile == TRACKING_PROFILE_ARKIT:
+        return TRACKING_PROFILE_ARKIT
+    return DEFAULT_TRACKING_PROFILE
+
+
+def iter_declared_parameters(
+    tracking_profile: str = DEFAULT_TRACKING_PROFILE,
+    address_prefix: str = "/avatar/parameters/",
+) -> list[tuple[str, str]]:
+    """Return ``(parameter_name, address)`` pairs for a local rig profile."""
+    profile = normalize_tracking_profile(tracking_profile)
+    if profile == TRACKING_PROFILE_ARKIT:
+        return [(name, address_prefix + name) for name in ARKIT_PARAMETERS]
+
+    out: list[tuple[str, str]] = []
+    seen_names: set[str] = set()
+
+    for name in V2_PARAMETERS:
+        param_name = "v2_" + name
+        if param_name in seen_names:
+            continue
+        seen_names.add(param_name)
+        out.append((param_name, address_prefix + "v2/" + name))
+
+    for name in LEGACY_PARAMETERS:
+        if name in seen_names:
+            continue
+        seen_names.add(name)
+        out.append((name, address_prefix + name))
+
+    return out
+
+
+def iter_vrcft_registration_parameters(
+    address_prefix: str = "/avatar/parameters/",
+) -> list[tuple[str, str]]:
+    """Return the parameter surface VRCFT's avatar parser actually understands.
+
+    Even when Blender is driving an ARKit rig locally, the avatar JSON we
+    hand to VRCFT must stay on the Unified/legacy parameter surface so VRCFT
+    keeps the full stream relevant and continues sending updates.
+    """
+    return iter_declared_parameters(TRACKING_PROFILE_UNIFIED, address_prefix)
+
+
+def all_known_addresses(
+    address_prefix: str = "/avatar/parameters/",
+    tracking_profile: str = DEFAULT_TRACKING_PROFILE,
+) -> list[str]:
+    """Every OSC address the selected tracking profile might emit.
 
     Order is deterministic so the JSON is stable across runs. Duplicates
-    (legacy names that match v2 names like ``JawOpen``) are kept once.
+    are kept once.
     """
-    seen = set()
+    seen: set[str] = set()
     out: list[str] = []
-    for n in V2_PARAMETERS:
-        addr = address_prefix + "v2/" + n
-        if addr not in seen:
-            seen.add(addr)
-            out.append(addr)
-    for n in LEGACY_PARAMETERS:
-        addr = address_prefix + n
-        if addr not in seen:
-            seen.add(addr)
-            out.append(addr)
+    for _param_name, address in iter_declared_parameters(tracking_profile, address_prefix):
+        if address in seen:
+            continue
+        seen.add(address)
+        out.append(address)
     return out

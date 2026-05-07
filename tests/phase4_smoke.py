@@ -94,6 +94,23 @@ expect(
 # Should be valid JSON (no surprises with escapes etc.)
 json.dumps(payload)
 
+arkit_payload = avatar_json.build_outer_json(
+    "avtr_arkit",
+    "Blender VRCFT - ARKit",
+    ["Basis", "jawOpen", "mouthSmileLeft"],
+    tracking_profile="ARKIT",
+)
+arkit_names = [p["name"] for p in arkit_payload["parameters"]]
+# VRCFT's file-based avatar parser only understands the Unified/legacy
+# surface, so ARKit rigs still register that full parameter family.
+expect("v2_JawX" in arkit_names, "ARKit payload should still include Unified v2 params")
+expect(arkit_names.count("jawOpen") == 1, "ARKit shape-key names should only be emitted once")
+arkit_smile = next(p for p in arkit_payload["parameters"] if p["name"] == "mouthSmileLeft")
+expect(
+    arkit_smile["input"]["address"] == "/avatar/parameters/mouthSmileLeft",
+    f"ARKit address wrong: {arkit_smile['input']['address']}",
+)
+
 
 # ---- bipolar resolve_targets unit checks ----
 print("[smoke] resolve_targets unit checks...")
@@ -181,6 +198,33 @@ expect(mo_names == sorted(sk_mo.keys()), f"MouthOpen targets: {mo_names}")
 jc = osc_bridge.resolve_targets("JawClench1", {"JawClench": None})
 expect(jc and jc[0][0] == "JawClench", f"JawClench1 alias: {jc}")
 
+# ARKit mode should translate incoming Unified names onto ARKit-shaped rigs.
+arkit_direct = osc_bridge.resolve_targets("JawOpen", {"jawOpen": None}, tracking_profile="ARKIT")
+expect(arkit_direct == [("jawOpen", osc_bridge._identity)], f"ARKit jawOpen alias: {arkit_direct}")
+
+arkit_smile_targets = osc_bridge.resolve_targets(
+    "MouthCornerPullLeft",
+    {"mouthSmileLeft": None},
+    tracking_profile="ARKIT",
+)
+expect(
+    arkit_smile_targets == [("mouthSmileLeft", osc_bridge._identity)],
+    f"ARKit mouth smile alias: {arkit_smile_targets}",
+)
+
+arkit_lid = osc_bridge.resolve_targets(
+    "EyeLidLeft",
+    {"eyeBlinkLeft": None, "eyeWideLeft": None},
+    tracking_profile="ARKIT",
+)
+arkit_lid_names = [t[0] for t in arkit_lid]
+expect(set(arkit_lid_names) == {"eyeBlinkLeft", "eyeWideLeft"}, f"ARKit eyelid targets: {arkit_lid_names}")
+arkit_blink = next(t[1] for t in arkit_lid if t[0] == "eyeBlinkLeft")
+arkit_wide = next(t[1] for t in arkit_lid if t[0] == "eyeWideLeft")
+expect(abs(arkit_blink(0.0) - 1.0) < 1e-6, f"ARKit blink(0)={arkit_blink(0.0)}")
+expect(abs(arkit_blink(0.75)) < 1e-6, f"ARKit blink(0.75)={arkit_blink(0.75)}")
+expect(abs(arkit_wide(0.9) - 0.6) < 1e-6, f"ARKit wide(0.9)={arkit_wide(0.9)}")
+
 
 # ---- end-to-end: bipolar OSC drives the right shape keys ----
 print("[smoke] registering add-on for end-to-end...")
@@ -259,6 +303,46 @@ for n in expected_touched:
     )
 expect(len(s.params) == 0, "params list should be cleared on stop")
 expect(len(bridge.touched_keys) == 0, "touched_keys should be cleared on stop")
+
+# ---- ARKit routing: lower-camel coefficients should drive ARKit or
+# bridged UE-style shape keys when the profile is switched ----
+print("[smoke] ARKit routing end-to-end...")
+for name in ("jawOpen", "mouthSmileLeft", "eyeBlinkLeft", "eyeWideLeft"):
+    if cube.data.shape_keys.key_blocks.get(name) is None:
+        block = cube.shape_key_add(name=name)
+        block.value = 0.0
+kb = cube.data.shape_keys.key_blocks
+
+s.tracking_profile = 'ARKIT'
+s.smoothing = 1.0
+s.rounding = 0.0
+bpy.ops.vrcft.start_test()
+
+client = SimpleUDPClient("127.0.0.1", s.osc_port)
+client.send_message("/avatar/parameters/v2/JawOpen", 0.65)
+client.send_message("/avatar/parameters/MouthSmileLeft", 0.8)
+client.send_message("/avatar/parameters/EyeLidLeft", 0.0)
+
+bridge = osc_bridge.get_bridge()
+expect(wait_for(lambda: bridge.queue.qsize() >= 3, 2.0), "ARKit OSC msgs did not arrive")
+osc_bridge.tick()
+
+expect(abs(kb["jawOpen"].value - 0.65) < 1e-3, f"ARKit jawOpen: {kb['jawOpen'].value}")
+expect(abs(kb["mouthSmileLeft"].value - 0.8) < 1e-3,
+    f"ARKit mouthSmileLeft: {kb['mouthSmileLeft'].value}")
+expect(abs(kb["eyeBlinkLeft"].value - 1.0) < 1e-3,
+    f"ARKit eyeBlinkLeft: {kb['eyeBlinkLeft'].value}")
+expect(abs(kb["eyeWideLeft"].value) < 1e-3,
+    f"ARKit eyeWideLeft should stay 0 when fully blinking: {kb['eyeWideLeft'].value}")
+
+arkit_item = s.params.get("MouthSmileLeft")
+expect(arkit_item is not None and arkit_item.matched,
+       "ARKit mouthSmileLeft should be marked matched")
+
+bpy.ops.vrcft.stop_test()
+for name in ("jawOpen", "mouthSmileLeft", "eyeBlinkLeft", "eyeWideLeft"):
+    expect(abs(kb[name].value) < 1e-6, f"{name} should reset after ARKit stop")
+s.tracking_profile = 'UNIFIED'
 
 # ---- partial smoothing: shape key must converge across multiple ticks
 # even when VRCFT only sends a value once and then goes silent ----

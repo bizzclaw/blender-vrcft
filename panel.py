@@ -16,6 +16,9 @@ class VRCFT_PT_main(Panel):
         box = layout.box()
         box.label(text="Setup", icon='OUTLINER_OB_MESH')
         box.prop(s, "head_mesh")
+        profile_col = box.column()
+        profile_col.enabled = not s.is_running
+        profile_col.prop(s, "tracking_profile")
         box.prop(s, "smoothing")
         box.prop(s, "rounding")
 
