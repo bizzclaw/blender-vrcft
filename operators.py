@@ -56,12 +56,14 @@ class VRCFT_OT_start_test(Operator):
             shape_key_names=_shape_key_names(s.head_mesh),
             send_host="127.0.0.1",
             send_port=s.vrcft_send_port,
+            tracking_profile=s.tracking_profile,
         )
         if result["error"]:
             s.avatar_status = result["error"]
             self.report({'WARNING'}, result["error"])
         else:
-            s.avatar_status = f"Registered as {result['name']}"
+            profile_label = "ARKit" if s.tracking_profile == 'ARKIT' else "Unified"
+            s.avatar_status = f"Registered as {result['name']} ({profile_label})"
             print(
                 f"[VRCFT] avatar JSON: {result['json_path']} "
                 f"(id={result['avatar_id']})"

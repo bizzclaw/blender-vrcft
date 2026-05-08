@@ -1,0 +1,157 @@
+# GitLab CI/CD Pipeline for Blender VRCFT
+# 
+# This pipeline runs tests for the Blender VRCFT add-on.
+# It uses a two-stage approach:
+#   1. Unit tests - Fast pytest runs without Blender
+#   2. Integration tests - Blender-dependent smoke tests
+#
+# Requirements:
+#   - GitLab Runner with Docker executor
+#   - For integration tests: runner with sufficient resources for Blender
+
+stages:
+  - lint
+  - test-unit
+  - test-integration
+
+variables:
+  PYTHON_VERSION: "3.11"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # Coverage configuration
+  COVERAGE_CORE: "coverage"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cache/pip
+
+# =============================================================================
+# Stage 1: Linting
+# =============================================================================
+
+ruff-lint:
+  stage: lint
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - pip install -r requirements-dev.txt
+  script:
+    - ruff check . --output-format=gitlab --output-file=ruff-report.json || true
+    - ruff check . --output-format=text
+  artifacts:
+    reports:
+      codequality: ruff-report.json
+    paths:
+      - ruff-report.json
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# =============================================================================
+# Stage 2: Unit Tests (Fast - No Blender Required)
+# =============================================================================
+
+unit-tests:
+  stage: test-unit
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - pip install -r requirements-dev.txt
+  script:
+    # Run unit tests with coverage
+    - pytest tests/unit/ -v --tb=short \
+        --cov=blender_vrcft \
+        --cov-report=xml:coverage.xml \
+        --cov-report=term-missing \
+        --junitxml=report.xml
+  coverage: '/TOTAL.+?([0-9]+%)/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.xml
+      - report.xml
+      - htmlcov/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# =============================================================================
+# Stage 3: Integration Tests (Requires Blender)
+# =============================================================================
+
+# Template for smoke tests to avoid repetition
+.smoke-test:
+  stage: test-integration
+  image:
+    name: nytimes/blender:5.0
+    entrypoint: ["/bin/bash", "-c"]
+  variables:
+    # Suppress Blender's debug output
+    PYTHONUNBUFFERED: "1"
+  rules:
+    # Run automatically on main branch
+    - if: $CI_COMMIT_BRANCH == "main"
+    # Run manually on merge requests (to save resources)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+  retry:
+    max: 2
+    when: runner_system_failure
+
+# Phase 1: Add-on registration and properties
+phase1-smoke:
+  extends: .smoke-test
+  script:
+    - blender --background --factory-startup --python tests/phase1_smoke.py
+
+# Phase 2: OSC reception and shape-key driving
+phase2-smoke:
+  extends: .smoke-test
+  script:
+    - blender --background --factory-startup --python tests/phase2_smoke.py
+
+# Phase 3: Live parameter UI list
+phase3-smoke:
+  extends: .smoke-test
+  script:
+    - blender --background --factory-startup --python tests/phase3_smoke.py
+
+# Phase 4: OSCQuery + bipolar parameters + ARKit
+phase4-smoke:
+  extends: .smoke-test
+  script:
+    - blender --background --factory-startup --python tests/phase4_smoke.py
+  timeout: 10 minutes  # Phase 4 is larger
+
+# Phase 5: Keyframe capture mode
+phase5-smoke:
+  extends: .smoke-test
+  script:
+    - blender --background --factory-startup --python tests/phase5_smoke.py
+  timeout: 10 minutes  # Phase 5 is larger
+
+# =============================================================================
+# Optional: Build Documentation or Package
+# =============================================================================
+
+# Uncomment if you want to build extension packages
+# build-package:
+#   stage: build
+#   image: python:${PYTHON_VERSION}-slim
+#   script:
+#     - zip -r blender-vrcft.zip . -x "*.git*" -x "tests/**" -x "__pycache__/**" -x "*.pyc"
+#   artifacts:
+#     paths:
+#       - blender-vrcft.zip
+#     expire_in: 1 week
+#   rules:
+#     - if: $CI_COMMIT_TAG
+#     - if: $CI_COMMIT_BRANCH == "main"

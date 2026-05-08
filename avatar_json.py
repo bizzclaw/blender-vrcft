@@ -48,13 +48,22 @@ def display_name(blend_path: str) -> str:
     return f"Blender VRCFT - {base or 'Untitled'}"
 
 
-def build_outer_json(avatar_id: str, name: str, shape_key_names: Iterable[str]) -> dict:
+def build_outer_json(
+    avatar_id: str,
+    name: str,
+    shape_key_names: Iterable[str],
+    tracking_profile: str = unified_expressions.DEFAULT_TRACKING_PROFILE,
+) -> dict:
     """Build the OuterJson structure VRCFT/Av3Emulator expect.
 
-    Declares every Unified Expressions parameter (v2 + legacy) plus the
-    avatar's literal shape-key names. VRCFT only sends data for parameters
-    listed here, so declaring the full UE set is what makes the bipolar /
-    composite / simplified params actually flow.
+    Declares the avatar's literal shape-key names plus the full Unified/
+    legacy VRCFT parameter surface.
+
+    The local ``tracking_profile`` controls how Blender maps incoming values
+    onto shape keys, but the JSON registration itself must stay on VRCFT's
+    built-in Unified/legacy parameter set. If we declare raw ARKit names
+    here, VRCFT's avatar parser marks almost none of its real output
+    parameters as relevant and streaming stalls almost immediately.
     """
     parameters = []
     seen_names = set()
@@ -78,15 +87,10 @@ def build_outer_json(avatar_id: str, name: str, shape_key_names: Iterable[str]) 
             continue
         _emit(sk_name, ADDRESS_PREFIX + sk_name)
 
-    # Full UE v2 parameter set.
-    for ue_name in unified_expressions.V2_PARAMETERS:
-        _emit("v2_" + ue_name, ADDRESS_PREFIX + "v2/" + ue_name)
-
-    # Legacy / simplified parameter set (no v2/ prefix).
-    for legacy_name in unified_expressions.LEGACY_PARAMETERS:
-        if legacy_name in seen_names:
-            continue
-        _emit(legacy_name, ADDRESS_PREFIX + legacy_name)
+    for param_name, address in unified_expressions.iter_vrcft_registration_parameters(
+        ADDRESS_PREFIX,
+    ):
+        _emit(param_name, address)
 
     return {"id": avatar_id, "name": name, "parameters": parameters}
 
@@ -166,8 +170,13 @@ def send_avatar_change(host: str, port: int, avatar_id: str) -> str | None:
     return None
 
 
-def register_blender_avatar(blend_path: str, shape_key_names: Iterable[str],
-                            send_host: str, send_port: int) -> dict:
+def register_blender_avatar(
+    blend_path: str,
+    shape_key_names: Iterable[str],
+    send_host: str,
+    send_port: int,
+    tracking_profile: str = unified_expressions.DEFAULT_TRACKING_PROFILE,
+) -> dict:
     """High-level: write JSON and notify VRCFT.
 
     Returns a dict with ``avatar_id``, ``name``, ``json_path`` (or None),
@@ -175,7 +184,12 @@ def register_blender_avatar(blend_path: str, shape_key_names: Iterable[str],
     """
     avatar_id = stable_avatar_id(blend_path)
     name = display_name(blend_path)
-    payload = build_outer_json(avatar_id, name, list(shape_key_names))
+    payload = build_outer_json(
+        avatar_id,
+        name,
+        list(shape_key_names),
+        tracking_profile=tracking_profile,
+    )
 
     user_id = discover_user_id()
     json_path: str | None = None

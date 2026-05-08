@@ -18,6 +18,8 @@ if _VENDOR not in sys.path:
 from pythonosc.dispatcher import Dispatcher  # noqa: E402
 from pythonosc.osc_server import ThreadingOSCUDPServer  # noqa: E402
 
+from . import unified_expressions
+
 QUEUE_MAX = 4096
 
 
@@ -130,6 +132,121 @@ UNIPOLAR_MAP = {
     "JawClench1":        ("JawClench",),
     "JawMandibleRaise1": ("JawMandibleRaise",),
 }
+
+
+# Unified/legacy parameters translated onto an ARKit-named rig.
+# In ARKit mode VRCFT still emits its normal Unified/legacy stream; Blender
+# remaps that stream onto ARKit coefficient names locally.
+ARKIT_BIPOLAR_MAP = {
+    # Jaw / mouth axes
+    "JawX":        (("jawRight",), ("jawLeft",)),
+    "JawZ":        (("jawForward",), ()),
+    "MouthUpperX": (("mouthRight",), ("mouthLeft",)),
+    "MouthLowerX": (("mouthRight",), ("mouthLeft",)),
+    "MouthX":      (("mouthRight",), ("mouthLeft",)),
+    # Eye gaze
+    "EyeLeftX":    (("eyeLookInLeft",),   ("eyeLookOutLeft",)),
+    "EyeRightX":   (("eyeLookOutRight",), ("eyeLookInRight",)),
+    "EyeLeftY":    (("eyeLookUpLeft",),   ("eyeLookDownLeft",)),
+    "EyeRightY":   (("eyeLookUpRight",),  ("eyeLookDownRight",)),
+    "EyeX":        (("eyeLookOutRight", "eyeLookInLeft"),
+                     ("eyeLookOutLeft",  "eyeLookInRight")),
+    "EyeY":        (("eyeLookUpRight",   "eyeLookUpLeft"),
+                     ("eyeLookDownRight", "eyeLookDownLeft")),
+    # Compatibility simplifiers
+    "CheekPuffSuckRight": (("cheekPuff",), ()),
+    "CheekPuffSuckLeft":  (("cheekPuff",), ()),
+    "CheekPuffSuck":      (("cheekPuff",), ()),
+    "BrowExpressionRight": (("browOuterUpRight", "browInnerUp"), ("browDownRight",)),
+    "BrowExpressionLeft":  (("browOuterUpLeft",  "browInnerUp"), ("browDownLeft",)),
+    "BrowExpression": (
+        ("browOuterUpRight", "browOuterUpLeft", "browInnerUp"),
+        ("browDownRight", "browDownLeft"),
+    ),
+    "SmileFrownRight": (("mouthSmileRight",), ("mouthFrownRight",)),
+    "SmileFrownLeft":  (("mouthSmileLeft",),  ("mouthFrownLeft",)),
+    "SmileFrown": (
+        ("mouthSmileRight", "mouthSmileLeft"),
+        ("mouthFrownRight", "mouthFrownLeft"),
+    ),
+    "SmileSadRight": (("mouthSmileRight",), ("mouthFrownRight", "mouthStretchRight")),
+    "SmileSadLeft":  (("mouthSmileLeft",),  ("mouthFrownLeft",  "mouthStretchLeft")),
+    "SmileSad": (
+        ("mouthSmileRight", "mouthSmileLeft"),
+        ("mouthFrownRight", "mouthFrownLeft", "mouthStretchRight", "mouthStretchLeft"),
+    ),
+}
+
+
+ARKIT_UNIPOLAR_MAP = {
+    # Eye / brows / cheeks / nose
+    "EyeClosedLeft": ("eyeBlinkLeft",),
+    "EyeClosedRight": ("eyeBlinkRight",),
+    "EyeSquint": ("eyeSquintRight", "eyeSquintLeft"),
+    "BrowDownRight": ("browDownRight",),
+    "BrowDownLeft": ("browDownLeft",),
+    "BrowPinchRight": ("browDownRight",),
+    "BrowPinchLeft": ("browDownLeft",),
+    "BrowLowererRight": ("browDownRight",),
+    "BrowLowererLeft": ("browDownLeft",),
+    "BrowInnerUp": ("browInnerUp",),
+    "BrowInnerUpRight": ("browInnerUp",),
+    "BrowInnerUpLeft": ("browInnerUp",),
+    "BrowOuterUp": ("browOuterUpRight", "browOuterUpLeft"),
+    "BrowUp": ("browInnerUp", "browOuterUpRight", "browOuterUpLeft"),
+    "CheekPuffRight": ("cheekPuff",),
+    "CheekPuffLeft": ("cheekPuff",),
+    "CheekSquint": ("cheekSquintRight", "cheekSquintLeft"),
+    "NoseSneer": ("noseSneerRight", "noseSneerLeft"),
+    # Mouth / lips
+    "MouthClosed": ("mouthClose",),
+    "MouthOpen": ("mouthUpperUpRight", "mouthUpperUpLeft", "mouthLowerDownRight", "mouthLowerDownLeft"),
+    "MouthUpperUp": ("mouthUpperUpRight", "mouthUpperUpLeft"),
+    "MouthLowerDown": ("mouthLowerDownRight", "mouthLowerDownLeft"),
+    "MouthSmileRight": ("mouthSmileRight",),
+    "MouthSmileLeft": ("mouthSmileLeft",),
+    "MouthSadRight": ("mouthFrownRight", "mouthStretchRight"),
+    "MouthSadLeft": ("mouthFrownLeft", "mouthStretchLeft"),
+    "MouthCornerPullRight": ("mouthSmileRight",),
+    "MouthCornerPullLeft": ("mouthSmileLeft",),
+    "MouthCornerSlantRight": ("mouthSmileRight",),
+    "MouthCornerSlantLeft": ("mouthSmileLeft",),
+    "MouthUpperRight": ("mouthRight",),
+    "MouthUpperLeft": ("mouthLeft",),
+    "MouthLowerRight": ("mouthRight",),
+    "MouthLowerLeft": ("mouthLeft",),
+    "MouthRaiserUpper": ("mouthShrugUpper",),
+    "MouthRaiserLower": ("mouthShrugLower",),
+    "LipSuckUpperRight": ("mouthRollUpper",),
+    "LipSuckUpperLeft": ("mouthRollUpper",),
+    "LipSuckUpper": ("mouthRollUpper",),
+    "LipSuckLowerRight": ("mouthRollLower",),
+    "LipSuckLowerLeft": ("mouthRollLower",),
+    "LipSuckLower": ("mouthRollLower",),
+    "LipSuck": ("mouthRollUpper", "mouthRollLower"),
+    "LipFunnelUpperRight": ("mouthFunnel",),
+    "LipFunnelUpperLeft": ("mouthFunnel",),
+    "LipFunnelUpper": ("mouthFunnel",),
+    "LipFunnelLowerRight": ("mouthFunnel",),
+    "LipFunnelLowerLeft": ("mouthFunnel",),
+    "LipFunnelLower": ("mouthFunnel",),
+    "LipFunnel": ("mouthFunnel",),
+    "LipPuckerUpperRight": ("mouthPucker",),
+    "LipPuckerUpperLeft": ("mouthPucker",),
+    "LipPuckerUpper": ("mouthPucker",),
+    "LipPuckerLowerRight": ("mouthPucker",),
+    "LipPuckerLowerLeft": ("mouthPucker",),
+    "LipPuckerLower": ("mouthPucker",),
+    "LipPucker": ("mouthPucker",),
+}
+
+
+ARKIT_EYELID_SIDES = {
+    "EyeLid": ("Left", "Right"),
+    "EyeLidLeft": ("Left",),
+    "EyeLidRight": ("Right",),
+}
+
 
 
 # Composite eyelid parameters. VRCFT semantics:
@@ -314,7 +431,11 @@ def canonical_name(name, sk):
     return most_stripped, False
 
 
-def resolve_targets(name, sk):
+def resolve_targets(
+    name,
+    sk,
+    tracking_profile=unified_expressions.DEFAULT_TRACKING_PROFILE,
+):
     """Decide which shape-key names a canonical OSC param drives.
 
     Returns a list of ``(shape_key_name, computed_value_fn)`` pairs where
@@ -337,7 +458,46 @@ def resolve_targets(name, sk):
     if name in sk:
         return [(name, _identity)]
 
+    profile = unified_expressions.normalize_tracking_profile(tracking_profile)
+
     targets = []
+
+    if profile == unified_expressions.TRACKING_PROFILE_ARKIT:
+        normalized = _normalize_arkit_name(name)
+        if normalized in sk:
+            return [(normalized, _identity)]
+
+        alias_name = _pascal_case_name(normalized)
+        if alias_name in sk:
+            return [(alias_name, _identity)]
+
+        bp = ARKIT_BIPOLAR_MAP.get(name)
+        if bp is not None:
+            pos_targets, neg_targets = bp
+            targets.extend(_shape_key_targets(pos_targets, sk, _positive_part))
+            targets.extend(_shape_key_targets(neg_targets, sk, _negative_part))
+            if targets:
+                return targets
+
+        up = ARKIT_UNIPOLAR_MAP.get(name)
+        if up is not None:
+            targets = _shape_key_targets(up, sk, _identity)
+            if targets:
+                return targets
+
+        sides = ARKIT_EYELID_SIDES.get(name)
+        if sides is not None:
+            for side in sides:
+                blink = "eyeBlink" + side
+                wide = "eyeWide" + side
+                if blink in sk:
+                    targets.append((blink, _eyelid_closed))
+                if wide in sk:
+                    targets.append((wide, _eyelid_wide))
+        if targets:
+            return targets
+
+        return []
 
     bp = BIPOLAR_MAP.get(name)
     if bp is not None:
@@ -375,6 +535,22 @@ def resolve_targets(name, sk):
             return targets
 
     return []
+
+
+def _shape_key_targets(shape_key_names, sk, value_fn):
+    return [(shape_key_name, value_fn) for shape_key_name in shape_key_names if shape_key_name in sk]
+
+
+def _normalize_arkit_name(name):
+    if not name:
+        return name
+    return name[0].lower() + name[1:]
+
+
+def _pascal_case_name(name):
+    if not name:
+        return name
+    return name[0].upper() + name[1:]
 
 
 def _identity(v):
@@ -504,7 +680,7 @@ def tick():
         # VRCFT bipolar params arrive in [-1, 1]; everything else in [0, 1].
         # Targets unpack the value themselves; only the unmatched UI row
         # needs a clamped scalar for display.
-        targets = resolve_targets(name, sk)
+        targets = resolve_targets(name, sk, s.tracking_profile)
         matched = bool(targets)
 
         all_converged = True
@@ -567,7 +743,13 @@ def tick():
     return 1.0 / 60.0
 
 
-_EYE_PARAM_NAMES = ("EyeX", "EyeY", "EyeLeftX", "EyeLeftY", "EyeRightX", "EyeRightY")
+_UNIFIED_EYE_PARAM_NAMES = (
+    "EyeX", "EyeY", "EyeLeftX", "EyeLeftY", "EyeRightX", "EyeRightY"
+)
+_ARKIT_EYE_PARAM_NAMES = (
+    "eyeLookInLeft", "eyeLookOutLeft", "eyeLookUpLeft", "eyeLookDownLeft",
+    "eyeLookInRight", "eyeLookOutRight", "eyeLookUpRight", "eyeLookDownRight",
+)
 
 
 def _drive_eye_bones(s, b, smoothing) -> bool:
@@ -583,18 +765,14 @@ def _drive_eye_bones(s, b, smoothing) -> bool:
         return False
 
     cm = b.committed_values
-    have_any = any(k in cm for k in _EYE_PARAM_NAMES)
+    have_any, _base_x, _base_y, left_x, left_y, right_x, right_y = _eye_values_from_committed(
+        cm,
+        getattr(s, "tracking_profile", unified_expressions.DEFAULT_TRACKING_PROFILE),
+    )
     if not have_any:
         return False
 
     from . import eye_bones
-
-    base_x = cm.get("EyeX", 0.0)
-    base_y = cm.get("EyeY", 0.0)
-    left_x = cm.get("EyeLeftX", base_x)
-    left_y = cm.get("EyeLeftY", base_y)
-    right_x = cm.get("EyeRightX", base_x)
-    right_y = cm.get("EyeRightY", base_y)
 
     range_args = (
         float(s.eye_range_up),
@@ -619,6 +797,47 @@ def _drive_eye_bones(s, b, smoothing) -> bool:
             changed = True
         b.touched_bones.add((arma.name, bone_name))
     return changed
+
+
+def _eye_values_from_committed(committed_values, tracking_profile):
+    profile = unified_expressions.normalize_tracking_profile(tracking_profile)
+    if profile == unified_expressions.TRACKING_PROFILE_ARKIT:
+        unified_have_any = any(k in committed_values for k in _UNIFIED_EYE_PARAM_NAMES)
+        if unified_have_any:
+            base_x = committed_values.get("EyeX", 0.0)
+            base_y = committed_values.get("EyeY", 0.0)
+            left_x = committed_values.get("EyeLeftX", base_x)
+            left_y = committed_values.get("EyeLeftY", base_y)
+            right_x = committed_values.get("EyeRightX", base_x)
+            right_y = committed_values.get("EyeRightY", base_y)
+            return True, base_x, base_y, left_x, left_y, right_x, right_y
+
+        have_any = any(
+            _coefficient(committed_values, name) != 0.0
+            or name in committed_values
+            or _pascal_case_name(name) in committed_values
+            for name in _ARKIT_EYE_PARAM_NAMES
+        )
+        left_x = _coefficient(committed_values, "eyeLookInLeft") - _coefficient(committed_values, "eyeLookOutLeft")
+        left_y = _coefficient(committed_values, "eyeLookUpLeft") - _coefficient(committed_values, "eyeLookDownLeft")
+        right_x = _coefficient(committed_values, "eyeLookOutRight") - _coefficient(committed_values, "eyeLookInRight")
+        right_y = _coefficient(committed_values, "eyeLookUpRight") - _coefficient(committed_values, "eyeLookDownRight")
+        base_x = (left_x + right_x) * 0.5
+        base_y = (left_y + right_y) * 0.5
+        return have_any, base_x, base_y, left_x, left_y, right_x, right_y
+
+    have_any = any(k in committed_values for k in _UNIFIED_EYE_PARAM_NAMES)
+    base_x = committed_values.get("EyeX", 0.0)
+    base_y = committed_values.get("EyeY", 0.0)
+    left_x = committed_values.get("EyeLeftX", base_x)
+    left_y = committed_values.get("EyeLeftY", base_y)
+    right_x = committed_values.get("EyeRightX", base_x)
+    right_y = committed_values.get("EyeRightY", base_y)
+    return have_any, base_x, base_y, left_x, left_y, right_x, right_y
+
+
+def _coefficient(committed_values, name):
+    return committed_values.get(name, committed_values.get(_pascal_case_name(name), 0.0))
 
 
 def reset_touched_shape_keys(scene):

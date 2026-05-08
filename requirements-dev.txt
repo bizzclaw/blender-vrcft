@@ -1,0 +1,15 @@
+# Development dependencies for Blender VRCFT
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest>=9.0
+pytest-cov>=4.0
+
+# Code quality
+ruff>=0.1.0
+
+# Type checking (optional)
+# mypy>=1.0
+
+# Documentation (optional)
+# sphinx>=7.0

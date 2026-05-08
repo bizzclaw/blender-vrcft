@@ -174,6 +174,7 @@ s.avatar_status = ""
 # Validate dropdown items
 expect(s.mode in {'TEST', 'CAPTURE'}, "mode default")
 expect(s.active_mode == 'IDLE', "active_mode default IDLE")
+expect(s.tracking_profile == 'UNIFIED', "tracking_profile default UNIFIED")
 
 # Idle -> Test
 s.mode = 'TEST'
@@ -256,6 +257,78 @@ jaw2 = _find_fcurve(sk_action, 'key_blocks["JawOpen"].value', 0)
 expect(jaw2 is not None and len(jaw2.keyframe_points) == 1,
        f"second start should clear+anchor JawOpen, got {len(jaw2.keyframe_points)}")
 bpy.ops.vrcft.stop_session()
+
+# ARKit capture should drive bridged shape keys and eye bones too.
+print("[smoke] ARKit capture pass...")
+arkit_mesh = make_mesh_with_keys(
+    "Phase5ARKit",
+    ["jawOpen", "mouthSmileLeft", "eyeBlinkLeft", "eyeWideLeft"],
+)
+arkit_arma = make_eye_armature()
+
+s.head_mesh = arkit_mesh
+s.eye_armature = arkit_arma
+s.left_eye_bone = "LeftEye"
+s.right_eye_bone = "RightEye"
+s.osc_port = free_port()
+s.smoothing = 1.0
+s.rounding = 0.0
+s.tracking_profile = 'ARKIT'
+s.eye_range_up = math.radians(15)
+s.eye_range_down = math.radians(15)
+s.eye_range_left = math.radians(15)
+s.eye_range_right = math.radians(15)
+bpy.context.scene.frame_set(40)
+
+res = bpy.ops.vrcft.start_session()
+expect('FINISHED' in res, "ARKit capture start should finish")
+b = osc_bridge.get_bridge()
+expect(b.keyframer is not None, "ARKit capture should engage keyframer")
+
+client = SimpleUDPClient("127.0.0.1", s.osc_port)
+arkit_sequence = [
+    ("/avatar/parameters/v2/JawOpen", 0.4),
+    ("/avatar/parameters/MouthSmileLeft", 0.75),
+    ("/avatar/parameters/EyeLidLeft", 0.0),
+    ("/avatar/parameters/v2/EyeLeftX", 1.0),
+    ("/avatar/parameters/v2/EyeLeftY", 1.0),
+]
+for addr, val in arkit_sequence:
+    client.send_message(addr, val)
+    expect(wait_for(lambda: b.queue.qsize() >= 1, 2.0), f"queued {addr}")
+    osc_bridge.tick()
+    time.sleep(0.01)
+
+from blender_vrcft import eye_bones as eb_mod
+left_pb = arkit_arma.pose.bones["LeftEye"]
+lx, ly, _ = eb_mod._read_euler_xyz(left_pb)
+expect(abs(lx - (-math.radians(15))) < 1e-4,
+       f"ARKit left pitch should be -15deg, got {math.degrees(lx):.2f}")
+expect(abs(ly - (-math.radians(15))) < 1e-4,
+       f"ARKit left yaw should be -15deg, got {math.degrees(ly):.2f}")
+
+bpy.ops.vrcft.stop_session()
+expect(not s.is_running and s.active_mode == 'IDLE', "ARKit capture should stop cleanly")
+
+arkit_sk_action = arkit_mesh.data.shape_keys.animation_data.action
+arkit_arm_action = arkit_arma.animation_data.action
+arkit_jaw = _find_fcurve(arkit_sk_action, 'key_blocks["jawOpen"].value', 0)
+arkit_smile = _find_fcurve(arkit_sk_action, 'key_blocks["mouthSmileLeft"].value', 0)
+arkit_blink = _find_fcurve(arkit_sk_action, 'key_blocks["eyeBlinkLeft"].value', 0)
+expect(arkit_jaw is not None and len(arkit_jaw.keyframe_points) >= 2,
+       "ARKit jawOpen should be captured")
+expect(arkit_smile is not None and len(arkit_smile.keyframe_points) >= 2,
+    "ARKit mouthSmileLeft should be captured")
+expect(arkit_blink is not None and len(arkit_blink.keyframe_points) >= 2,
+       "ARKit eyeBlinkLeft should be captured")
+
+arkit_eye_y = _find_fcurve(
+    arkit_arm_action,
+    'pose.bones["LeftEye"].rotation_euler',
+    1,
+)
+expect(arkit_eye_y is not None and len(arkit_eye_y.keyframe_points) >= 2,
+    "ARKit eye look should keyframe the eye bone")
 
 blender_vrcft.unregister()
 print("[smoke] PASS")
